@@ -122,7 +122,8 @@ class ChangeSet implements Iterator
      * @param $key
      * @return bool
      */
-    public function exists($key):bool{
+    public function exists($key): bool
+    {
         return array_key_exists($key, $this->data) && !is_null($this->data[$key]);
     }
 }

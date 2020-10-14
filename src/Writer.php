@@ -60,8 +60,10 @@ class Writer
      * @param string $jsonData
      * @return $this
      */
-    public function writeSnapshot($hash, string $jsonData)
+    public function writeSnapshot(Snapshot $snapshot)
     {
+        $hash = $snapshot->getHash();
+        $jsonData = json_encode($snapshot->getData());
         $lock = $this->lockFactory->createLock($this->repoUuid, 90);
         if (!$lock->acquire()) {
             throw new Exception(sprintf('Unable to obtain lock for repository -  %s', $this->repoUuid));

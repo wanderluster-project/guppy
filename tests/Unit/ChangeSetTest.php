@@ -50,10 +50,10 @@ class ChangeSetTest extends TestCase
         $this->assertEquals(null, $sut1->get('foo5'));
     }
 
-    public function testExists(){
-        $sut = new ChangeSet();
-        $this->assertFalse($sut->exists('foo'));
-        $sut->set('foo','bar');
-        $this->assertTrue($sut->exists('foo'));
-    }
+//    public function testExists(){
+//        $sut = new ChangeSet();
+//        $this->assertFalse($sut->exists('foo'));
+//        $sut->set('foo','bar');
+//        $this->assertTrue($sut->exists('foo'));
+//    }
 }

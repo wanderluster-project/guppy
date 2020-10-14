@@ -46,14 +46,16 @@ class Repository
         $originalChangeset = new ChangeSet($this->reader->getCurrentSnapshotData());
         $changeset = $originalChangeset->merge($changeset);
 
-        $snapshot = new Snapshot($this->hasher, $this->writer);
+        $snapshot = new Snapshot($this->hasher);
         $keys = $changeset->keys();
         foreach ($keys as $key) {
             $data = $changeset->get($key);
             $hash = $this->hasher->hash($data);
             $entity = new Entity($key, $hash, $data);
             $snapshot->add($entity);
+            $this->writer->writeEntity($entity);
         }
-        $snapshot->save();
+
+        $this->writer->writeSnapshot($snapshot);
     }
 }

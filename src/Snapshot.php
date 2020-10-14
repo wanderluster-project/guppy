@@ -9,16 +9,14 @@ class Snapshot
      */
     protected array $entities = [];
     protected Hasher $hasher;
-    protected Writer $writer;
 
     /**
      * Snapshot constructor.
      * @param Hasher $hasher
      */
-    public function __construct(Hasher $hasher, Writer $writer)
+    public function __construct(Hasher $hasher)
     {
         $this->hasher = $hasher;
-        $this->writer = $writer;
     }
 
     /**
@@ -40,14 +38,13 @@ class Snapshot
         return $this->hasher->hash(json_encode(array_keys($this->entities)));
     }
 
-    public function save()
+    public function getData()
     {
         $data = [];
         foreach ($this->entities as $entity) {
-            $this->writer->writeEntity($entity);
             $data[$entity->getKey()] = $entity->getHash();
         }
         ksort($data);
-        $this->writer->writeSnapshot($this->getHash(), json_encode($data, JSON_PRETTY_PRINT));
+        return $data;
     }
 }
