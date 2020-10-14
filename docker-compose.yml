@@ -1,0 +1,16 @@
+version: '3.3'
+
+services:
+  guppy:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    links:
+      - redis:redis
+    volumes:
+      - ./:/var/www/html
+      - ~/.ssh:/root/.ssh
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"

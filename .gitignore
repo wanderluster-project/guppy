@@ -1,0 +1,4 @@
+.idea/*
+tests/E2E/SampleRepo/*
+vendor/*
+composer.phar

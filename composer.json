@@ -1,0 +1,32 @@
+{
+    "name": "swimson/guppy",
+    "description": "Distributed Data",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Kevin Simpson",
+            "email": "simpkevin@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Guppy\\": "src",
+            "Guppy\\Test\\": "tests"
+        }
+    },
+    "config": {
+        "platform": {
+            "php": "7.4"
+        }
+    },
+    "require": {
+        "ramsey/uuid": "^3.9",
+        "phpunit/phpunit": "^9.3",
+        "symfony/lock": "^5.1",
+        "ext-json": "*",
+        "ext-xml": "*",
+        "ext-redis": "*",
+        "ext-zlib": "*"
+    }
+}
