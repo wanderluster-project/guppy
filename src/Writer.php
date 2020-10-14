@@ -2,39 +2,32 @@
 
 namespace Guppy;
 
-use Symfony\Component\Lock\LockFactory;
 use Exception;
+use Symfony\Component\Lock\LockInterface;
 
 class Writer
 {
-    protected string $baseDir;
-    protected string $repoUuid;
     protected string $repoDir;
     protected Compressor $compressor;
-    protected LockFactory $lockFactory;
+    protected LockInterface $lock;
+    protected ShellExecutor $shellExecutor;
 
-
-    public function __construct(string $repoUuid, string $baseDir, Compressor $compressor, LockFactory $lockFactory)
+    public function __construct( string $repoDir, Compressor $compressor, LockInterface $lock, ShellExecutor $shellExecutor)
     {
-        $this->repoUuid = $repoUuid;
-        $this->baseDir =$baseDir;
+        $this->repoDir = $repoDir;
         $this->compressor = $compressor;
-        $this->lockFactory = $lockFactory;
-        $this->init();
+        $this->lock = $lock;
+        $this->shellExecutor = $shellExecutor;
     }
 
     /**
      * Initialize the repo directory.
      */
-    public function init()
+    public function initRepository()
     {
-        $repoDir = $this->baseDir . '/' . $this->repoUuid;
-        if (!file_exists($repoDir)) {
-            mkdir($repoDir);
-            mkdir($repoDir . '/entities');
-            mkdir($repoDir . '/snapshots');
-        }
-        $this->repoDir = realpath($repoDir);
+        mkdir($this->repoDir);
+        mkdir($this->repoDir . '/entities');
+        mkdir($this->repoDir . '/snapshots');
     }
 
     /**
@@ -43,45 +36,31 @@ class Writer
      */
     public function writeEntity(Entity $entity)
     {
-        $repoPaths = $entity->getRepoPaths();
-        $dir = $this->repoDir . '/entities/' . $repoPaths['dir'];
-        if (!file_exists($dir)) {
-            mkdir($dir);
-        }
-        $filePath = $dir . '/' . $repoPaths['file'];
-        if (!file_exists($filePath)) {
-            file_put_contents($filePath, $this->compressor->compress($entity->getData()));
-        }
+        $filePath = $this->repoDir . '/entities/' . $entity->getHash();
+        file_put_contents($filePath, $this->compressor->compress($entity->getData()));
         return $this;
     }
 
     /**
-     * @param string $hash
-     * @param string $jsonData
+     * @param Snapshot $snapshot
      * @return $this
+     * @throws Exception
      */
     public function writeSnapshot(Snapshot $snapshot)
     {
-        $hash = $snapshot->getHash();
+        $version = $snapshot->getVersion();
         $jsonData = json_encode($snapshot->getData());
-        $lock = $this->lockFactory->createLock($this->repoUuid, 90);
-        if (!$lock->acquire()) {
-            throw new Exception(sprintf('Unable to obtain lock for repository -  %s', $this->repoUuid));
+        if (!$this->lock->acquire()) {
+            throw new Exception(sprintf('Unable to obtain lock for repository'));
         }
 
         try {
-            $filePath = $this->repoDir . '/snapshots/' . $hash;
+            $filePath = $this->repoDir . '/snapshots/' . $version;
             $currentPath = $this->repoDir . '/current';
-            if (!file_exists($filePath)) {
-                file_put_contents($filePath, $jsonData);
-            }
-            if (file_exists($currentPath)) {
-                unlink($this->repoDir . '/current');
-            }
-
-            symlink($filePath, $this->repoDir . '/current');
+            file_put_contents($filePath, $jsonData);
+            $this->shellExecutor->exec('ln -sfn %s %s', [$filePath, $currentPath]);
         } finally {
-            $lock->release();
+            $this->lock->release();
         }
 
         return $this;

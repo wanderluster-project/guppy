@@ -22,7 +22,7 @@ class Hasher
      * @param string $string
      * @return string
      */
-    public function hash(string $string)
+    public function hash(string $string): string
     {
         return hash($this->config->hashAlgorithm, $string);
     }

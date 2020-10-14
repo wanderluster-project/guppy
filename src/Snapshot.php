@@ -5,40 +5,39 @@ namespace Guppy;
 class Snapshot
 {
     /**
+     * @var int
+     */
+    protected int $version;
+
+    /**
      * @var Entity[]
      */
     protected array $entities = [];
-    protected Hasher $hasher;
 
     /**
      * Snapshot constructor.
-     * @param Hasher $hasher
+     * @param int $version
+     * @param array $entities
      */
-    public function __construct(Hasher $hasher)
+    public function __construct(int $version, array $entities)
     {
-        $this->hasher = $hasher;
+        $this->version = $version;
+        foreach ($entities as $entity) {
+            $this->entities[$entity->getKey()] = $entity;
+        }
     }
 
     /**
-     * @param Entity $entity
-     * @return Snapshot
+     * @return int
      */
-    public function add(Entity $entity): Snapshot
-    {
-        $this->entities[$entity->getKey()] = $entity;
-        return $this;
+    public function getVersion():int{
+        return $this->version;
     }
 
     /**
-     * @return string
+     * @return array
      */
-    public function getHash(): string
-    {
-        ksort($this->entities);
-        return $this->hasher->hash(json_encode(array_keys($this->entities)));
-    }
-
-    public function getData()
+    public function getData(): array
     {
         $data = [];
         foreach ($this->entities as $entity) {

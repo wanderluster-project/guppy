@@ -3,6 +3,8 @@
 namespace Guppy;
 
 use Exception;
+use Symfony\Component\Lock\Lock;
+use Symfony\Component\Lock\LockInterface;
 
 class Repository
 {
@@ -12,6 +14,7 @@ class Repository
     protected Reader $reader;
     protected Writer $writer;
     protected Hasher $hasher;
+    protected LockInterface $lock;
 
     /**
      * Repository constructor.
@@ -25,16 +28,15 @@ class Repository
 
         $this->uuid = $uuid;
         $this->config = $config;
+        $this->lock = $config->lockFactory->createLock($uuid);
         $this->compressor = new Compressor($this->config);
         $this->reader = new Reader($config->baseDir. '/'.$uuid);
-        $this->writer = new Writer($uuid, $config->baseDir, $this->compressor, $config->lockFactory);
+        $this->writer = new Writer($config->baseDir. '/'.$uuid, $this->compressor, $this->lock , new ShellExecutor());
         $this->hasher = new Hasher($config);
     }
 
-    public function init()
-    {
-
-
+    public function init():Repository{
+        $this->writer->initRepository();
         return $this;
     }
 
@@ -44,17 +46,18 @@ class Repository
     public function commit(ChangeSet $changeset)
     {
         $originalChangeset = new ChangeSet($this->reader->getCurrentSnapshotData());
-        $changeset = $originalChangeset->merge($changeset);
+        $changeSet = $originalChangeset->merge($changeset);
 
-        $snapshot = new Snapshot($this->hasher);
-        $keys = $changeset->keys();
+        $entities = [];
+        $keys = $changeSet->keys();
         foreach ($keys as $key) {
-            $data = $changeset->get($key);
+            $data = $changeSet->get($key);
             $hash = $this->hasher->hash($data);
             $entity = new Entity($key, $hash, $data);
-            $snapshot->add($entity);
             $this->writer->writeEntity($entity);
+            $entities[] = $entity;
         }
+        $snapshot = new Snapshot(0, $entities);
 
         $this->writer->writeSnapshot($snapshot);
     }

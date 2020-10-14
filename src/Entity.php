@@ -44,16 +44,4 @@ class Entity
     {
         return $this->data;
     }
-
-    /**
-     * @return array
-     */
-    public function getRepoPaths(): array
-    {
-        return [
-            'dir' => substr($this->getHash(), 0, 2),
-            'file' => substr($this->hash, 2, mb_strlen($this->hash) - 2),
-        ];
-    }
-
 }

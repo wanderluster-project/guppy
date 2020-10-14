@@ -36,8 +36,10 @@ class RepositoryTest extends TestCase
         $changeSet = new Changeset();
         $changeSet->set('foo', file_get_contents(__DIR__ . '/sample-entity-data.json'));
         $changeSet->set('bar', '456aslfjasdlfjladsjfaasdfasdfadsfasdfasasdfasdfasdfadsfasdfasdfasdfdfsdfasdfadsfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasfasdfasdfsdaflkasdjflkjasdlkfjaklsdjflkasdfkljasdlkfjlkasdjflkasdjlfkja');
-        $uuid = Uuid::uuid4();
+//        $uuid = Uuid::uuid4();
+        $uuid = '9b40e296-2dbf-49a4-be50-5be67c7ea6ad';
         $sut = new Repository((string)$uuid, $config);
+        $sut->init();
         $sut->commit($changeSet);
 
         $newChangeset = new Changeset();
