@@ -23,7 +23,7 @@ class Snapshot
     {
         $this->version = $version;
         foreach ($entities as $entity) {
-            $this->entities[$entity->getKey()] = $entity;
+            $this->addEntity($entity);
         }
     }
 
@@ -32,6 +32,13 @@ class Snapshot
      */
     public function getVersion():int{
         return $this->version;
+    }
+
+    /**
+     * @param Entity $entity
+     */
+    public function addEntity(Entity $entity){
+        $this->entities[$entity->getKey()] = $entity;
     }
 
     /**
@@ -45,5 +52,9 @@ class Snapshot
         }
         ksort($data);
         return $data;
+    }
+
+    public function incrementVersion(){
+        return new Snapshot($this->getVersion()+1, $this->entities);
     }
 }

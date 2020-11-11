@@ -3,14 +3,15 @@
 namespace Guppy;
 
 use Exception;
-use Symfony\Component\Lock\Lock;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
+use Symfony\Component\Lock\Store\FlockStore;
 
 class Repository
 {
     protected string $uuid;
     protected Config $config;
-    protected Compressor $compressor;
+    protected FileSystem $fs;
     protected Reader $reader;
     protected Writer $writer;
     protected Hasher $hasher;
@@ -28,37 +29,48 @@ class Repository
 
         $this->uuid = $uuid;
         $this->config = $config;
-        $this->lock = $config->lockFactory->createLock($uuid);
-        $this->compressor = new Compressor($this->config);
-        $this->reader = new Reader($config->baseDir. '/'.$uuid);
-        $this->writer = new Writer($config->baseDir. '/'.$uuid, $this->compressor, $this->lock , new ShellExecutor());
+        $this->fs = new FileSystem($this->config);
+        $this->reader = new Reader($config->baseDir . '/' . $uuid, $this->fs, $this->config->compressSnapshots);
+        $this->writer = new Writer($config->baseDir . '/' . $uuid, $this->fs, $this->config->compressSnapshots, $this->config->compressEntities);
         $this->hasher = new Hasher($config);
     }
 
-    public function init():Repository{
+    public function init(): Repository
+    {
         $this->writer->initRepository();
         return $this;
     }
 
     /**
-     * @param ChangeSet $changeset
+     * @param ChangeSet $changeSet
+     * @throws Exception
      */
-    public function commit(ChangeSet $changeset)
+    public function commit(ChangeSet $changeSet)
     {
-        $originalChangeset = new ChangeSet($this->reader->getCurrentSnapshotData());
-        $changeSet = $originalChangeset->merge($changeset);
+        $lockFactory = new LockFactory(new FlockStore($this->config->baseDir));
+        $lock = $lockFactory->createLock($this->uuid);
+        try {
+            if (!$lock->acquire()) {
+                throw new Exception('Unable to obtain lock on repository to commit.');
+            };
 
-        $entities = [];
-        $keys = $changeSet->keys();
-        foreach ($keys as $key) {
-            $data = $changeSet->get($key);
-            $hash = $this->hasher->hash($data);
-            $entity = new Entity($key, $hash, $data);
-            $this->writer->writeEntity($entity);
-            $entities[] = $entity;
+            $currentSnapshot = $this->reader->getCurrentSnapshot();
+            $newSnapshot = $currentSnapshot->incrementVersion();
+            $keys = $changeSet->keys();
+            foreach ($keys as $key) {
+                $data = $changeSet->get($key);
+                $hash = $this->hasher->hash($data);
+                $entity = new Entity($key, $hash, $data);
+                $this->writer->writeEntity($entity);
+                $newSnapshot->addEntity($entity);
+            }
+
+            $this->writer->writeSnapshot($newSnapshot);
+        } catch (Exception $e) {
+            throw $e;
+            // @todo log exception
+        } finally {
+            $lock->release();
         }
-        $snapshot = new Snapshot(0, $entities);
-
-        $this->writer->writeSnapshot($snapshot);
     }
 }

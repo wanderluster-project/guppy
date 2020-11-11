@@ -3,25 +3,22 @@
 namespace Guppy;
 
 use Exception;
-use Symfony\Component\Lock\LockFactory;
 
 class Config
 {
     public string $hashAlgorithm = 'sha256';
-    public string $compressionAlgorithm = 'gz';
-    public int $compressionLevel = 6;
+    public bool $compressEntities = true;
+    public bool $compressSnapshots = true;
     public string $baseDir;
-    public LockFactory $lockFactory;
+    public int $maxFileSize = 10000000;
 
     /**
      * Config constructor.
      * @param string $baseDir
-     * @param LockFactory $lockFactory
      */
-    public function __construct(string $baseDir, LockFactory $lockFactory)
+    public function __construct(string $baseDir)
     {
         $this->baseDir = $baseDir;
-        $this->lockFactory = $lockFactory;
     }
 
     /**
@@ -39,17 +36,6 @@ class Config
 
         if (!file_exists($this->baseDir)) {
             throw new Exception(sprintf('Invalid Config - baseDir does not exist = %s', $this->baseDir));
-        }
-
-        if (!in_array($this->compressionAlgorithm, ['gz', 'none'])) {
-            throw new Exception(sprintf('Invalid Config - compressionAlgorithm = %s', $this->compressionAlgorithm));
-        }
-        if (!is_int($this->compressionLevel)) {
-            throw new Exception(sprintf('Invalid Config - compressionLevel = %s', $this->compressionLevel));
-        }
-
-        if (!$this->lockFactory) {
-            throw new Exception(sprintf('Invalid Config - lockFactory'));
         }
     }
 }

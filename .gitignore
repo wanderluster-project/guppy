@@ -1,4 +1,4 @@
 .idea/*
-tests/E2E/SampleRepo/*
 vendor/*
 composer.phar
+tests/E2E/Workspace/*

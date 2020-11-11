@@ -3,21 +3,20 @@
 namespace Guppy;
 
 use Exception;
-use Symfony\Component\Lock\LockInterface;
 
 class Writer
 {
     protected string $repoDir;
-    protected Compressor $compressor;
-    protected LockInterface $lock;
-    protected ShellExecutor $shellExecutor;
+    protected FileSystem $fs;
+    protected bool $compressEntities;
+    protected bool $compressSnapshots;
 
-    public function __construct( string $repoDir, Compressor $compressor, LockInterface $lock, ShellExecutor $shellExecutor)
+    public function __construct(string $repoDir, FileSystem $fs, bool $compressSnapshots, bool $compressEntities)
     {
         $this->repoDir = $repoDir;
-        $this->compressor = $compressor;
-        $this->lock = $lock;
-        $this->shellExecutor = $shellExecutor;
+        $this->fs = $fs;
+        $this->compressEntities = $compressEntities;
+        $this->compressSnapshots = $compressSnapshots;
     }
 
     /**
@@ -25,9 +24,14 @@ class Writer
      */
     public function initRepository()
     {
-        mkdir($this->repoDir);
-        mkdir($this->repoDir . '/entities');
-        mkdir($this->repoDir . '/snapshots');
+        if ($this->fs->fileExists($this->repoDir)) {
+            throw new Exception('Repository already initialized');
+        }
+        $this->fs->makeDir($this->repoDir);
+        $this->fs->makeDir($this->repoDir . '/entities');
+        $this->fs->makeDir($this->repoDir . '/snapshots');
+        $this->fs->writeToFile($this->repoDir . '/snapshots/0', json_encode(['_ver' => 0, '_data' => []]));
+        $this->setCurrentVersion(0);
     }
 
     /**
@@ -37,7 +41,12 @@ class Writer
     public function writeEntity(Entity $entity)
     {
         $filePath = $this->repoDir . '/entities/' . $entity->getHash();
-        file_put_contents($filePath, $this->compressor->compress($entity->getData()));
+        if ($this->compressEntities) {
+            $this->fs->writeToFile('compress.zlib://' . $filePath, $entity->getData());
+        } else {
+            $this->fs->writeToFile($filePath, $entity->getData());
+        }
+
         return $this;
     }
 
@@ -49,20 +58,21 @@ class Writer
     public function writeSnapshot(Snapshot $snapshot)
     {
         $version = $snapshot->getVersion();
-        $jsonData = json_encode($snapshot->getData());
-        if (!$this->lock->acquire()) {
-            throw new Exception(sprintf('Unable to obtain lock for repository'));
-        }
+        $jsonData = json_encode(['_ver' => $version, '_data' => $snapshot->getData()], JSON_PRETTY_PRINT);
 
-        try {
-            $filePath = $this->repoDir . '/snapshots/' . $version;
-            $currentPath = $this->repoDir . '/current';
-            file_put_contents($filePath, $jsonData);
-            $this->shellExecutor->exec('ln -sfn %s %s', [$filePath, $currentPath]);
-        } finally {
-            $this->lock->release();
+        $filePath = $this->repoDir . '/snapshots/' . $version;
+        if ($this->compressSnapshots) {
+            $this->fs->writeToFile('compress.zlib://' . $filePath, $jsonData);
+        } else {
+            $this->fs->writeToFile( $filePath, $jsonData);
         }
+        $this->setCurrentVersion($version);
 
         return $this;
+    }
+
+    public function setCurrentVersion(int $version)
+    {
+        $this->fs->writeToFile($this->repoDir . '/current', $version);
     }
 }
